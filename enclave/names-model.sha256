@@ -1,0 +1,8 @@
+# Hashes of our own name model's files, as the enclave image must carry them.
+# Written by enclave/scripts/stage-names-model.sh from namemodel/out/xlmr10s7p05/onnx on 2026-10-28.
+6cda490b394179b32bfdbea22cc196612b4ca13130a673627a7d50992b9c3da6  calibration.json
+2ecd016186642a411e8164e8e7cb4b1976ebc9905420ec670bfa4bd363d834cb  config.json
+1386043aa820de1bf83421c37f8b81c1753d046b4b7eb01acc33d6c0764bce3d  onnx/model_quantized.onnx
+8c785abebea9ae3257b61681b4e6fd8365ceafde980c21970d001e834cf10835  special_tokens_map.json
+7b1aba2c535eea742f5768845112d2a51fbc66185f1ad835e32df706458f21f4  tokenizer.json
+31f8945cc6739aa57fa50b32ac3306a0cfe41571e33cd25629c709cc14849be7  tokenizer_config.json

@@ -1,0 +1,13 @@
+# The parent's allowlist, installed at /etc/nitro_enclaves/vsock-proxy.yaml.
+#
+# This is the only set of places the enclave can reach. It is a real control
+# rather than a formality: an enclave that could open a connection anywhere
+# could send what it has just read to anywhere, and the entire argument for
+# putting redaction in here rests on it not being able to.
+#
+# Adding an entry widens what a compromised enclave image could exfiltrate to.
+# Every line should be a provider the product actually calls.
+allowlist:
+  - {address: api.anthropic.com, port: 443}
+  - {address: api.openai.com, port: 443}
+  - {address: generativelanguage.googleapis.com, port: 443}

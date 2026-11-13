@@ -1,0 +1,22 @@
+{
+  "name": "secure-ai-enclave",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Redaction inside an AWS Nitro Enclave",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/server.ts",
+    "start": "node dist/server.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^3.8.1",
+    "cbor2": "^1.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

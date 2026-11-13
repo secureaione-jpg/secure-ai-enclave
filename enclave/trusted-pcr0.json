@@ -1,0 +1,11 @@
+{
+  "note": "The enclave images the website will send sealed messages to. Must contain the PCR0 and Rollback rows of RUNBOOK.md; lib/trustedPcr0.test.ts fails the push when it does not. Update this in the same commit as the runbook when the enclave is swapped.",
+  "pcr0": [
+    "02755a1197ec423a66be475b5b6ff8dad67a19bced3566ad6a7614fb4a9bd64e740bceb67af6fdbcd622bed4acc790b1",
+    "2998e598c80b2157e9a782a994c36af37373aaadcf684b8e686e8ef9172532fe61ccf8568cc2853553f988b82b8cdf61",
+    "349adb4e200b738b1ce182ee426ef001754144d79f076bc96e3802b5a7cecaea7be0dc19978d2704d87a20386b8bb133",
+    "c8adeb09e54b7b0f2ad7afaffee8a27bd79a7c00f80a97e707f84601230a04baa34de064556e0894977629b77b4405d1",
+    "600a439b4178fba66fb34cef3f8bb6067cb45aa8d5dd91af5d8e1fe3b914dd2d2270f7e6b6a35509cddbbd40d67010e3",
+    "58ecfbe30ed3dadcbce4b1b4da9de629de3a7b12c60c7aea42dc95abd0e100d8f9beb746541c0eec6fabdb6e70b77eff"
+  ]
+}

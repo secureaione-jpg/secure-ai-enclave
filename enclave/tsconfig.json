@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ES2022",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM"],
+    "strict": true,
+    "noUncheckedIndexedAccess": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "outDir": "dist",
+    "rootDir": "..",
+    "allowImportingTsExtensions": false
+  },
+  "include": ["src/**/*.ts", "../cloudflare-worker/redaction.ts", "../cloudflare-worker/redactionMap.ts", "../cloudflare-worker/redactionStructured.ts", "../cloudflare-worker/redactionNames.ts", "../cloudflare-worker/redactionNumbers.ts", "../cloudflare-worker/redactionRestore.ts", "../cloudflare-worker/restoreCore.ts", "../cloudflare-worker/redactionPatterns.ts", "../cloudflare-worker/redactionNameWords.ts", "../cloudflare-worker/redactionBuild.ts", "../cloudflare-worker/redactionFold.ts", "../cloudflare-worker/redactionFields.ts", "../cloudflare-worker/redactionFamous.ts", "../cloudflare-worker/redactionGivenNames.ts", "../cloudflare-worker/redactionWorldGivenNames.ts", "../cloudflare-worker/redactionSurnames.ts", "../cloudflare-worker/redactionNameWordsIntl.ts", "../cloudflare-worker/redactionAddressAsia.ts", "../cloudflare-worker/redactionArabic.ts", "../cloudflare-worker/redactionMoreScripts.ts", "../cloudflare-worker/redactionLearned.ts", "../cloudflare-worker/redactionMedical.ts", "../cloudflare-worker/redactionRecords.ts", "../cloudflare-worker/redactionAddressWorld.ts", "../cloudflare-worker/redactionFamousAlone.ts", "../cloudflare-worker/redactionNameCuesMore.ts", "../cloudflare-worker/redactionThaiGivenNames.ts", "../cloudflare-worker/redactionPhoneContext.ts", "../cloudflare-worker/redactionNameGender.ts", "../cloudflare-worker/redactionScriptGivenNames.ts", "../lib/sealedEnvelope.ts", "../cloudflare-worker/redactionRows.ts", "../cloudflare-worker/redactionTowns.ts", "../cloudflare-worker/redactionFamousAliases.ts"],
+  // The tests are not part of the image. src/**/*.ts began matching them the
+  // moment sealedChat.test.ts existed, and they import vitest, which is not in
+  // the enclave's dependencies — so tsc failed, the docker build failed, the
+  // old :latest tag stayed, and build-enclave produced a byte-identical image
+  // with the same PCR0 as the version it was replacing. A rebuild that changes
+  // nothing and reports success.
+  "exclude": ["src/**/*.test.ts"]
+}
