@@ -1333,7 +1333,7 @@ export const US_ZIP_CUED_PATTERN =
  * "我的电话是139 1076 4823", "手机186-2153-0947", "手機號碼：0912-345-678".
  */
 export const PHONE_CUED_PATTERN =
-  /(?:\b(?:my|his|her|their|our|your)\s+(?:[A-Za-z]+\s+){0,2}number\s+is|電話(?:番号)?|携帯(?:番号)?|(?:联系)?电话(?:号码)?是?|手[机機](?:号码?|號碼?)?是?|電話號碼是?|\b(?:phone|tel|telephone|mobile|cell|fax|contact(?:\s+(?:me|us|him|her|them))?(?:\s+(?:at|on))?|call(?:\s+(?:me|us|him|her|them))?(?:\s+(?:at|on))?|reach(?:\s+(?:out|me|us|him|her|them))*(?:\s+(?:at|on|via))?|reach(?:ed|able)\s+(?:at|on|via)|get\s+in\s+touch(?:\s+(?:at|on|via))?|queries\s+to|enquiries\s+to|answering\s+at|messages?\s+to|registered(?:\s+(?:number|mobile|phone))?|text(?:\s+(?:me|us))?(?:\s+(?:at|on))|whats\s?app|sms|dial))\s*(?:via|through|using)?\s*(?:number|no\.?|#|is)?\s*[:：\-]?\s*(\+?[\d(][\d\s().\-]{6,19}\d)(?!(?<=[ \t]\d{1,3})(?:[A-Za-z\d]|\/\d))/gid;
+  /(?:\b(?:my|his|her|their|our|your)\s+(?:[A-Za-z]+\s+){0,2}number(?:\s+is)?|(?<=^|\n)[ \t]*(?:T|M|P|C|Ph|Mob|Cel|Tlf|Tfn|Tél|Telf|Móvil|Handy)\.?(?=[ \t]*[:：])|電話(?:番号)?|携帯(?:番号)?|(?:联系)?电话(?:号码)?是?|手[机機](?:号码?|號碼?)?是?|電話號碼是?|\b(?:phone|tel|telephone|mobile|cell|fax|contact(?:\s+(?:me|us|him|her|them))?(?:\s+(?:at|on))?|call(?:\s+(?:me|us|him|her|them))?(?:\s+(?:at|on))?|reach(?:\s+(?:out|me|us|him|her|them))*(?:\s+(?:at|on|via))?|reach(?:ed|able)\s+(?:at|on|via)|get\s+in\s+touch(?:\s+(?:at|on|via))?|queries\s+to|enquiries\s+to|answering\s+at|messages?\s+to|registered(?:\s+(?:number|mobile|phone))?|text(?:\s+(?:me|us))?(?:\s+(?:at|on))|whats\s?app|sms|dial))\s*(?:via|through|using)?\s*(?:number|no\.?|#|is)?\s*[:：\-]?\s*(\+?[\d(][\d\s().\-]{6,19}\d)(?!(?<=[ \t]\d{1,3})(?:[A-Za-z\d]|\/\d))/gid;
 
 /**
  * The short national numbers of small places — Tokelau's "7290", Andorra's
@@ -1342,6 +1342,13 @@ export const PHONE_CUED_PATTERN =
  * on/at", and only where the number ends the phrase; findStructured refuses
  * a time ("call me at 1030 tonight").
  */
+/**
+ * A Brazilian or Portuguese account with its check digit: "conta 63049-8",
+ * "conta corrente nº 0123456-X", "c/c 12345-6". The hyphen and the one
+ * digit after it are what make it an account (leak hunt, 2026-11-14).
+ */
+export const PT_ACCOUNT_PATTERN = /(?<![\p{L}])(?:conta(?:\s+corrente|\s+poupan[çc]a)?|c\/c)\s*(?:n[º°.]?\s*)?[:#]?\s*(\d{4,12}-[\dXx])(?![\d\p{L}])/giud;
+
 export const PHONE_SHORT_CUED_PATTERN =
   /\b(?:[Cc]all|[Rr]ing|[Pp]hone|[Tt]ext|[Dd]ial)\s+(?:me|us|him|her|them)\s+(on|at)\s+(\d(?:[ .]?\d){3,6})(?=\s*(?:[.,;!?]|$|\s+(?:tonight|today|tomorrow|now|anytime|or|and|after|before|from)\b))/gd;
 
@@ -1695,7 +1702,7 @@ export const ACCOUNT_CUED_INTL_PATTERN =
  */
 export const ACCOUNT_CUED_WORLD_PATTERN = new RegExp(
   String.raw`(?:(?<![\p{L}\p{N}])(?:CLABE|clabe|р\/с|р\/сч|расч[её]тн(?:ый|ого|ом)\s+сч[её]т[ау]?|сч[её]т[ау]?|рахун(?:ок|ку)|akaun|no\.?\s*akaun|no\.?\s*rek(?:ening)?|hesap\s+no|IBAN\s+no|s[ốo]\s+t[àa]i\s+kho[ảa]n|STK|stk|λογαριασμ(?:ός|ό|ού))(?![\p{L}])` +
-  String.raw`|เลขที่บัญชี|เลขบัญชี|खाता\s+(?:संख्या|नंबर)|رقم\s+الحساب|מספר\s+חשבון|口座番号|口座|계좌|帳號|账号|帐号)` +
+  String.raw`|เลขที่บัญชี|เลขบัญชี|खाता(?:\s+(?:संख्या|नंबर))?|رقم\s+الحساب|מספר\s+חשבון|口座番号|口座|계좌|帳號|账号|帐号)` +
   // The bank between: "Maybank", "국민은행", "招商银行", "Сбербанка".
   String.raw`(?:[ \t]*(?:[가-힣]{1,6}은행|\p{Script=Han}{1,6}(?:银行|銀行)|(?:Maybank|CIMB|BCA|BRI|BNI|Mandiri|Сбербанк[а-я]*|Т-?Банк[а-я]*|Тинькофф[а-я]*)))?` +
   String.raw`[ \t]*(?:(?:[:：#=]|是|為|为|は|para\s+la\s+n[óo]mina|es|na|ke|в)[ \t]*)*` +
@@ -1901,7 +1908,7 @@ export const VIN_PATTERN =
  * digits with two digits or more (the accept in redactionStructured.ts).
  */
 export const PLATE_LABELLED_PATTERN =
-  /(?<![A-Za-z])(?:[Ll]icen[cs]e[ \t]+[Pp]lates?|LICEN[CS]E[ \t]+PLATES?|[Nn]umber[ \t]+[Pp]late|[Pp]late[ \t]+[Nn]umber|[Rr]egistration[ \t]+[Pp]late|[Vv]ehicle[ \t]+[Rr]eg(?:istration)?\.?|[Cc]ar[ \t]+[Rr]eg(?:istration)?\.?|[Rr]eg[ \t]+(?:[Nn]o\.?|[Nn]umber)|(?:[Kk]fz-)?[Kk]ennzeichen|[Ii]mmatriculation|[Mm]atr[íi]cula|[Tt]arga|[Kk]enteken)(?:[ \t]+(?:number|no\.?))?(?:[ \t]+(?:for|of|on|this|the|that|vehicle|car|is|was|reads|matches|del|de|du|la|le|coche|auto|voiture|es|est|ist|è|van)(?![A-Za-z])){0,5}[ \t]*(?:[:#=(*"'`,][ \t]*){0,4}([A-Z0-9]{1,4}(?:[ -][A-Z0-9]{1,4}){0,3})(?![A-Za-z0-9-])/gd;
+  /(?<![A-Za-z])(?:[Ll]icen[cs]e[ \t]+[Pp]lates?|LICEN[CS]E[ \t]+PLATES?|[Nn]umber[ \t]+[Pp]late|[Pp]late[ \t]+[Nn]umber|[Rr]egistration[ \t]+[Pp]late|[Vv]ehicle[ \t]+[Rr]eg(?:istration)?\.?|[Cc]ar[ \t]+[Rr]eg(?:istration)?\.?|[Cc]ar[ \t]+[Pp]late|(?:[Mm]y|[Hh]is|[Hh]er|[Tt]heir|[Yy]our|[Oo]ur)[ \t]+(?:car[ \t]+)?plate|[Rr]eg[ \t]+(?:[Nn]o\.?|[Nn]umber)|(?:[Kk]fz-)?[Kk]ennzeichen|[Ii]mmatriculation|[Mm]atr[íi]cula|[Tt]arga|[Kk]enteken)(?:[ \t]+(?:number|no\.?))?(?:[ \t]+(?:for|of|on|this|the|that|vehicle|car|is|was|reads|matches|del|de|du|la|le|coche|auto|voiture|es|est|ist|è|van)(?![A-Za-z])){0,5}[ \t]*(?:[:#=(*"'`,][ \t]*){0,4}([A-Z0-9]{1,4}(?:[ -][A-Z0-9]{1,4}){0,3})(?![A-Za-z0-9-])/gd;
 
 /**
  * Record numbers under labels CUED_ID_PATTERN does not know: a vehicle or
@@ -2041,7 +2048,7 @@ export const CRYPTO_CUED_PATTERN =
  * "password reset" stay prose.
  */
 export const PASSWORD_LABELLED_PATTERN = new RegExp(
-  String.raw`(?:\b(?:password|passwort|kennwort|passcode|contrase[ñn]a|wachtwoord|l[öo]senord|parola\s+d['’]ordine|mot\s+de\s+passe)(?![\p{L}\d_.-])(?:[ \t]+(?:de|du|des|di|del|för|voor|für|for)[ \t]+[\p{L}'’-]+(?:[ \t]+(?:de|du|des|di|del)[ \t]+[\p{L}'’-]+)?)?)` +
+  String.raw`(?:\b(?:password|passwort|kennwort|passcode|pw|pwd|passwd|contrase[ñn]a|wachtwoord|l[öo]senord|parola\s+d['’]ordine|mot\s+de\s+passe)(?![\p{L}\d_.-])(?:[ \t]+(?:de|du|des|di|del|för|voor|für|for)[ \t]+[\p{L}'’-]+(?:[ \t]+(?:de|du|des|di|del)[ \t]+[\p{L}'’-]+)?)?)` +
   String.raw`(?:[ \t]*(?:is|was|of|es|est|ist|är|è|:|=|\(|>|["'“*]))*[ \t]*` +
   // Never in backticks: "the password `1f2d1e2e67df`" is documentation showing code.
   // In XML the value ends where its closing tag starts: <Password>X9k$LmP3zQ8</Password>.
@@ -2452,7 +2459,7 @@ export const PRIVATE_IP_PATTERN =
  * 194.182.100.19"): Nemotron practice rows, 2026-10-08.
  */
 export const IP_LABELLED_PATTERN =
-  /\b(?:(?:customer|client|user|visitor|member|login|sign[\s-]?in|source|remote|originating|unknown|suspicious)\s+)?(?:ip(?:v4)?[\s_-]*(?:address(?:es)?|adress|adres|adresse[sn]?|addr)?|ip-?adresse?|ip-?adress|ip-?adres|indirizzo\s+ip|direcci[óo]n\s+ip|adresse\s+ip|ip\s+de\s+(?:acceso|connexion|conexi[óo]n)|coordonn[ée]es\s+ip)\b(?:\s+(?:is|was|of|:))?[\s:=*"'(|,>]*((?:25[0-5]|2[0-4]\d|1?\d?\d)(?:\.(?:25[0-5]|2[0-4]\d|1?\d?\d)){3})(?![\d.]*\d)/gid;
+  /(?:\b|(?<=_))(?:(?:customer|client|user|visitor|member|login|sign[\s-]?in|source|remote|originating|unknown|suspicious|real|last[\s_-]?login|signup|registration)[\s_-]+)?(?:remote[_-]addr|x[_-](?:forwarded[_-]for|real[_-]ip)|client[_-]?addr(?:ess)?|ip(?:v4)?[\s_-]*(?:address(?:es)?|adress|adres|adresse[sn]?|addr)?|ip-?adresse?|ip-?adress|ip-?adres|indirizzo\s+ip|direcci[óo]n\s+ip|adresse\s+ip|ip\s+de\s+(?:acceso|connexion|conexi[óo]n)|coordonn[ée]es\s+ip)\b(?:\s+(?:is|was|of|:))?[\s:=*"'(|,>]*((?:25[0-5]|2[0-4]\d|1?\d?\d)(?:\.(?:25[0-5]|2[0-4]\d|1?\d?\d)){3})(?![\d.]*\d)/gid;
 /**
  * The second of two addresses under one label: "IP addresses 108.87.25.139
  * and 101.73.200.74". findStructured takes it only when the first was taken
@@ -2591,6 +2598,24 @@ export const NAME_NUMBER_PATTERN = /(?<![\w@./:\%&=+#$-])([A-Z][a-z]{2,11}\d{1,3
  */
 export const HANDLE_CUED_PATTERN =
   /(?:\b(?:user\s?name|login(?:\s+name)?|log\s+in\s+as|handle|user\s?id|your\s+id|profile|account\s+name)\b(?:\s+(?:is|was))?\s*[:=]?\s*|\b(?:Dear|Hello|Hi|Hey)\s+)([A-Z][a-z]{2,}(?:\d{1,4}|[._](?:Mc|Mac|O)?[A-Z][a-z]{2,}\d{0,4}))(?![\w@-]|\.\w)/gd;
+
+/**
+ * A handle with its @, as Slack, Twitter, Instagram and GitHub write one:
+ * "ping @sarahchen on slack", "@sarah.chen", "@ivanov_88". Nothing took it
+ * (leak hunt, 2026-11-14). Lower case only, which is how people write them
+ * and how Java, Swift and TypeScript do not write their decorators; a Python
+ * decorator is followed by "(" or ".name", an npm scope by "/", a version
+ * by a digit, an email by a letter in front, a NatSpec tag by its colon
+ * ("@custom:predeploy"), and code by what it is welded to (";@x"): a handle
+ * in prose follows a space or an opening bracket. What follows the @ is
+ * judged by nameHandle, and AT_HANDLE_NOT names the rest: a group mention, a
+ * CSS or doc-comment keyword, a dist-tag, a cron shorthand, a domain.
+ */
+export const AT_HANDLE_PATTERN = /(?<=^|[\s(,\[])@([a-z][a-z0-9_.]{1,29}[a-z0-9])(?![\w@/%&=+:-]|\.\w|\s*\()/gm;
+export const AT_HANDLE_NOT = new RegExp(
+  "^(?:everyone|channel|here|all|team|group|something|someone|anyone|nothing|anything|everything|custom|media|import|keyframes|supports|layer|page|charset|namespace|font-face|container|scope|property|staticmethod|classmethod|dataclass|abstractmethod|override|param|params|return|returns|type|typedef|see|link|example|deprecated|since|author|version|throws|brief|file|module|abstract|test|before|after|mock|inject|bean|component|service|input|output|latest|next|canary|beta|alpha|rc|dev|stable|nightly|main|master|hourly|daily|weekly|monthly|yearly|annually|reboot|midnight|include|define|interface|implementation|end|synthesize|selector|protocol|optional|required|class|public|private|protected|objc|available|escaping|state|binding|published|environment|generated|preview|apply|tailwind|guest|support|admin|user|bot|me|you|home|login|signup|register|contact|about|help|info|news|blog|shop|store|mail|email|noreply|no-reply|sample|demo)$"
+  + "|\\.(?:com|net|org|io|co|edu|gov|uk|de|fr|ai|app|dev|me|info|biz|us|ca|au|in|jp|cn|ru|br|es|it|nl|se|ch|xyz|tv|ly|to|cc|eu|be|at|pl|cz|dk|fi|no|nz|za|mx|ar|cl|kr|tw|hk|sg|id|ph|vn|th|my|tr|il|ie|pt|gr|hu|ro|ua|sk|si|hr|bg|lt|lv|ee|is|lu)$",
+);
 
 /**
  * A street with no number and an ordinary street word, after the word that
@@ -2889,6 +2914,16 @@ export const SOUTH_ASIAN_ADDRESS_PATTERN = new RegExp([
   // Thai: the house number, then a soi, road, sub-district and district.
   String.raw`(?<![\p{Nd}/])\p{Nd}{1,4}(?:/\p{Nd}{1,4})?(?:[ \t]*หมู่[ \t]*\p{Nd}{1,3})?(?:[ \t]*(?:ซอย|ซ\.|ถนน|ถ\.|แขวง|ตำบล|ต\.|อำเภอ|อ\.|เขต|หมู่บ้าน|คอนโด)[ก-ฮะ-ฺเ-๎]+(?:[ \t]*\p{Nd}{1,3})?){1,5}`,
 ].join("|"), "gu");
+/** Words of a measure or a date between the road and its number: "شارع
+ *  عرض 20" is a street twenty metres wide, "بتاريخ 10" a date. */
+export const ARABIC_ROAD_NOT = /(?:^|[ \t])(?:عرض\p{L}*|بعرض|طول|بطول|تاريخ|بتاريخ|مساحة|بمساحة|سرعة|متر|كم|كيلو)(?=[ \t]|$)/u;
+/** An Arabic street or road, its name, its number, then the town and
+ *  postcode: "طريق العليا 794، الرياض 01479" (leak hunt, 2026-11-14). Scanned
+ *  before the label rules, which took the street's name alone and left its
+ *  number, town and postcode. */
+const AR_LETTERS = String.raw`\u0621-\u064A\u0671-\u06D3`;
+export const ARABIC_ROAD_PATTERN = new RegExp(String.raw`(?<![${AR_LETTERS}])(?<!عن[ \t])(?:شارع|طريق)(?:[ \t]+[${AR_LETTERS}]+){1,3}[ \t]+\p{Nd}{1,5}(?![\p{Nd}\/.\-])(?:[ \t]*[,،][ \t]*[${AR_LETTERS}]+(?:[ \t]+\p{Nd}{5})?)?`, "gu");
+
 /** Run SOUTH_ASIAN_ADDRESS_PATTERN at all: a letter of one of its scripts. */
 export const HAS_SOUTH_ASIAN_OR_ARABIC = /[؀-ۿऀ-౿฀-๿]/;
 

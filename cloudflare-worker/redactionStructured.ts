@@ -11,6 +11,7 @@
 import {
   FAKE_AREA_CODES, FAKE_EMAIL_DOMAINS, FAKE_FIRST, FAKE_LAST, MAX_REDACTION_ENTRIES,
   escapeRegex, isAllowed, isSubstitutable, lowered, pickFake,
+  MAX_REDACTION_VALUE_LENGTH, wordInHaystack,
 } from "./redactionMap.js";
 import type { AllowList, RedactionMap } from "./redactionMap.js";
 import { COMMON_CAPITALISED, isCommonLowercaseWord, isGivenNameAnywhere, isNotAPerson } from "./redactionNameWords.js";
@@ -30,7 +31,7 @@ import {
   FR_NIR_PATTERN, BE_NN_PATTERN, MY_NRIC_PATTERN, PK_CNIC_PATTERN, MY_NUMBER_IS_PATTERN, KR_PASSPORT_CUED_PATTERN, PHONE_SHORT_CUED_PATTERN, CZ_RC_PATTERN, PT_CC_PATTERN, MU_NID_PATTERN, ES_NIE_LOWER_PATTERN,
   ACCOUNT_CUED_PATTERN, ACCOUNT_CUED_INTL_PATTERN, CARD_LABELLED_INTL_PATTERN, CARD_LABELLED_WORLD_PATTERN, CARD_WORD_RUN_PATTERN, CARD_NEAR_LABEL_PATTERN, NINO_CUED_PATTERN, PHONE_CUED_INTL_PATTERN, PIN_CUED_PATTERN, PASSWORD_LABELLED_PATTERN, USERNAME_LABELLED_PATTERN, USERNAME_NOT, ID_DOC_CUED_PATTERN, ROUTING_CUED_INTL_PATTERN, DOB_LABELLED_PATTERN, BIC_CUED_PATTERN, BIC_LABELLED_PATTERN, CVV_LABELLED_PATTERN, CUSTOMER_ID_CUED_PATTERN, ISO_COUNTRY_CODES, ADDRESS_PATTERN, ASSIGNED_SECRET_PATTERN, AUTH_HEADER_PATTERN, AU_POSTCODE_PATTERN,
   ADDRESS_CUED_PATTERN, WORLD_RECORD_ID_PATTERN, INSURANCE_ID_PATTERN, WORLD_STREET_PATTERN, ADDRESS_LABELLED_PATTERN, ADDRESS_LABEL_NOT_A_STREET, AZURE_CLIENT_SECRET_PATTERN, ID_LABEL_AFTER_PATTERN, JP_ADDRESS_PATTERN, JP_POSTCODE_PATTERN, USERNAME_WORLD_PATTERN, plausibleWorldUsername,
-  SOUTH_ASIAN_ADDRESS_PATTERN, HAS_SOUTH_ASIAN_OR_ARABIC,
+  SOUTH_ASIAN_ADDRESS_PATTERN, HAS_SOUTH_ASIAN_OR_ARABIC, ARABIC_ROAD_PATTERN, ARABIC_ROAD_NOT,
   ACCOUNT_CUED_WORLD_PATTERN,
   PASSWORD_WORLD_NEAR_PATTERN, DOOR_CODE_PATTERN, PHONE_CUED_WORLD_PATTERN, PHONE_NATIONAL_SHAPED_PATTERN, VAT_CUED_PATTERN, BUSINESS_ID_LABELLED_PATTERN, JA_ACCOUNT_PATTERN, ES_PHONE_PATTERN, WORLD_ID_LABELLED_PATTERN, CJK_ID_LABELLED_PATTERN, GLUED_FORM_ID_PATTERN, WORLD_ID_NEAR_PATTERN, ID_LOG_KEY_PATTERN,
   JP_ROMAJI_ADDRESS_PATTERN, PH_CRN_PATTERN, NOT_A_STREET_PATTERN, AUTH_HEADER_BARE_PATTERN, ZA_ID_PATTERN, SECRET_COMPARED_PATTERN, AU_MEDICARE_PATTERN, CARD_DOTTED_PATTERN, DE_SVNR_PATTERN, ELEVEN_DIGITS_PATTERN, ES_ID_PATTERN,
@@ -45,7 +46,7 @@ import {
   SECRET_PATTERN, SSN_CUED_LOOSE_PATTERN, SSN_CUED_INTL_PATTERN, SSN_CUED_PATTERN, SSN_PATTERN, SSN_SPACED_PATTERN,
   UK_POSTCODE_PATTERN, POSTCODE_LABELLED_PATTERN, POSTCODE_LABEL_GLUED_PATTERN, TW_POSTCODE_BEFORE_CITY_PATTERN, KO_POSTCODE_AFTER_ADDRESS_PATTERN, POSTCODE_LINE_PATTERN, PLACE_LINE_PATTERN, US_ZIP_CUED_PATTERN, US_ZIP_PATTERN, US_ZIP_PLUS4_PATTERN, VIN_PATTERN, PLATE_LABELLED_PATTERN, POSTCODE_AFTER_STREET_PATTERN,
   ZIP_AFTER_PLACE_PATTERN, ZIP_BESIDE_ADDRESS_PATTERN, PHONE_CUED_INDIC_PATTERN, ID_CUED_INDIC_PATTERN,
-  RANDOM_TOKEN_PATTERN, NAME_HANDLE_PATTERN, NAME_DOT_PATTERN, NAME_NUMBER_PATTERN, WEAK_STREET_CUED_PATTERN, PHONE_SMALL_CUE_PATTERN, ACCOUNT_PAYMENT_PATTERN, APT_ALONE_PATTERN, END_LABEL_PATTERN, AR_CPA_PATTERN, NL_POSTCODE_ALONE_PATTERN, ID_POSSESSIVE_PATTERN, ID_UPPER_TOKEN_PATTERN, ADDRESS_NON_LATIN_PATTERN, HAS_NON_LATIN, ADDRESS_INTL_CUED_PATTERN, HAS_STREET_CUE_INTL, AUTH_LOG_IP_PATTERN, BIC_BARE_PATTERN, BANKING_CONTEXT, PIN_WORDED_PATTERN, PIN_VERB_PATTERN, CH_UID_PATTERN, EU_VAT_PATTERN, FR_TAX_GROUPED_PATTERN, PASSPORT_SHAPE_PATTERN, PT_ID_CUED_PATTERN, CVV_AFTER_PATTERN, CRYPTO_CUED_PATTERN, HANDLE_CUED_PATTERN, RECORD_ID_LABELLED_PATTERN, RECORD_ID_PREFIXED_PATTERN, RECORD_ID_SHAPED_PATTERN, RECORD_REF_PATTERN, USERNAME_QUOTED_PATTERN, SESSION_COOKIE_PATTERN, PASSWORD_FOR_PATTERN, PHONE_TRUNK_PATTERN, ORDER_CODE_PATTERN, ORDER_CODE_PERSONAL, BUILDING_CUED_PATTERN, NUMBER_ON_STREET_PATTERN, CN_RESIDENT_ID_PATTERN, ID_SANDWICH_PATTERN, PHONE_MIXED_PATTERN, STREET_NUMBERLESS_PATTERN, PIN_LOOSE_PATTERN, NUMBER_POSSESSIVE_PATTERN, ZIP_PLACE_WORD_PATTERN, POSTCODE_GLUED_PATTERN, ACCOUNT_BARE_PATTERN, BARE_EIGHT_NOT_AN_ACCOUNT, BARE_EIGHT_COUNTS, FR_PASSPORT_PATTERN, PHONE_ZERO_GROUPS_PATTERN,
+  RANDOM_TOKEN_PATTERN, NAME_HANDLE_PATTERN, NAME_DOT_PATTERN, NAME_NUMBER_PATTERN, WEAK_STREET_CUED_PATTERN, PHONE_SMALL_CUE_PATTERN, ACCOUNT_PAYMENT_PATTERN, APT_ALONE_PATTERN, END_LABEL_PATTERN, AR_CPA_PATTERN, NL_POSTCODE_ALONE_PATTERN, ID_POSSESSIVE_PATTERN, ID_UPPER_TOKEN_PATTERN, ADDRESS_NON_LATIN_PATTERN, HAS_NON_LATIN, ADDRESS_INTL_CUED_PATTERN, HAS_STREET_CUE_INTL, AUTH_LOG_IP_PATTERN, BIC_BARE_PATTERN, BANKING_CONTEXT, PIN_WORDED_PATTERN, PIN_VERB_PATTERN, CH_UID_PATTERN, EU_VAT_PATTERN, FR_TAX_GROUPED_PATTERN, PASSPORT_SHAPE_PATTERN, PT_ID_CUED_PATTERN, CVV_AFTER_PATTERN, CRYPTO_CUED_PATTERN, HANDLE_CUED_PATTERN, RECORD_ID_LABELLED_PATTERN, RECORD_ID_PREFIXED_PATTERN, RECORD_ID_SHAPED_PATTERN, RECORD_REF_PATTERN, USERNAME_QUOTED_PATTERN, SESSION_COOKIE_PATTERN, PASSWORD_FOR_PATTERN, PHONE_TRUNK_PATTERN, ORDER_CODE_PATTERN, ORDER_CODE_PERSONAL, BUILDING_CUED_PATTERN, NUMBER_ON_STREET_PATTERN, CN_RESIDENT_ID_PATTERN, ID_SANDWICH_PATTERN, PHONE_MIXED_PATTERN, STREET_NUMBERLESS_PATTERN, PIN_LOOSE_PATTERN, NUMBER_POSSESSIVE_PATTERN, ZIP_PLACE_WORD_PATTERN, POSTCODE_GLUED_PATTERN, ACCOUNT_BARE_PATTERN, BARE_EIGHT_NOT_AN_ACCOUNT, BARE_EIGHT_COUNTS, FR_PASSPORT_PATTERN, PHONE_ZERO_GROUPS_PATTERN, AT_HANDLE_PATTERN, AT_HANDLE_NOT, PT_ACCOUNT_PATTERN,
 } from "./redactionPatterns.js";
 import { acceptLearned, learnedCuePatterns, type LearnedCue } from "./redactionLearned.js";
 
@@ -1282,7 +1283,11 @@ export function findStructured(
         const raw = match[group];
         if (typeof raw !== "string") continue;
         if (overlaps(start, end)) continue;
-        if (NUMBER_KINDS.has(kind) && insideHexToken(scanText, start, end)) continue;
+        // A valid IBAN in lower case is all hex too ("de58046016…"), and the
+        // checksum outranks the shape (leak hunt, 2026-11-14).
+        // Only when the account part is digits, as most countries' is: a hex
+        // id passes mod-97 one time in 97 ("iban=de71ae99151b…").
+        if (NUMBER_KINDS.has(kind) && insideHexToken(scanText, start, end) && !(kind === "iban" && /^[a-z]{2}\d{2}[\d ]+$/i.test(raw.trim()) && iban97(raw))) continue;
         // Two readings of the same span: the normalised one for the checks,
         // which are arithmetic on digits, and the original one for the value,
         // because that is the string that has to be found and replaced in the
@@ -1478,6 +1483,10 @@ export function findStructured(
     },
   });
   scan(HANDLE_CUED_PATTERN, "govid", { group: 1, accept: (value) => nameHandle(value) });
+  // A Portuguese account by its check digit.
+  scan(PT_ACCOUNT_PATTERN, "iban", { group: 1 });
+  // With its @, as Slack, Twitter, Instagram and GitHub write one.
+  scan(AT_HANDLE_PATTERN, "govid", { group: 1, accept: (value, before, after) => !AT_HANDLE_NOT.test(value) && nameHandle(value) && notCode(before, after) });
   // A person's name is neither an ordinary word, a term nor a product — see
   // NAME_DOT_PATTERN and NAME_NUMBER_PATTERN for what the shapes also are.
   const personal = (word: string) => /^(?:Mc|Mac|O)?[A-Z][a-z]+$/.test(word) && !COMMON_CAPITALISED.has(word)
@@ -2109,6 +2118,7 @@ export function findStructured(
   });
   // Before the postcode patterns, so a full address is taken as one value
   // rather than being carved into a street and a code that no longer agree.
+  if (/[؀-ۿ]/.test(scanText)) scan(ARABIC_ROAD_PATTERN, "address", { accept: (value) => !ARABIC_ROAD_NOT.test(value) });
   scan(PO_BOX_PATTERN, "address");
   scan(JP_ADDRESS_PATTERN, "address");
   scan(JP_ROMAJI_ADDRESS_PATTERN, "address");
@@ -2148,6 +2158,27 @@ export function findStructured(
       return !/^(?:Google|One|Hard|Disk|Flash|USB|Thumb|Network|Shared|Team|Test)\s+Drive$/.test(value);
   };
   scan(ADDRESS_PATTERN, "address", { accept: addressAccept });
+  /* A street in capitals, as a lease or a shipping label writes one: "1507
+     BAY RIDGE PKWY, BOISE ID 83702". The pattern reads words by their capital
+     and small letters, so it saw none (leak hunt, 2026-11-14). Read again
+     with each capitalised word as a name is written: one letter for one, so
+     every span is the same span of the text. */
+  if (/\b\d{1,6}[ \t]+[A-Z]{2,}(?:[ \t]+[A-Z]{2,})*[ \t]+(?:ST|STREET|AVE|AVENUE|RD|ROAD|DR|DRIVE|LN|LANE|BLVD|PKWY|PARKWAY|CT|COURT|PL|PLACE|TER|TERRACE|WAY|CIR|CIRCLE|HWY|TRL|SQ|CRES|CLOSE|GROVE)\b/.test(scanText)) {
+    const titled = scanText.replace(/\b([A-Z])([A-Z]+)\b/g, (_w, a: string, b: string) => a + b.toLowerCase());
+    ADDRESS_PATTERN.lastIndex = 0;
+    for (const m of titled.matchAll(ADDRESS_PATTERN)) {
+      const start = m.index ?? 0;
+      const end = start + m[0].length;
+      if (overlaps(start, end)) continue;
+      const value = text.slice(start, end).trim();
+      if (value !== value.toUpperCase()) continue;
+      // A time in a time zone is not a court: "10:00 AM CT" (Enron).
+      if (/^0|\b(?:AM|PM|A\.M|P\.M)\b/.test(value) || /[:.]\s*$/.test(scanText.slice(Math.max(0, start - 1), start))) continue;
+      if (!addressAccept(m[0].trim(), titled.slice(Math.max(0, start - 40), start), titled.slice(end, end + 40))) continue;
+      claim([start, end]);
+      found.push({ kind: "address", value });
+    }
+  }
   // Its two branches for other languages, only where there is one to read.
   if (HAS_NON_LATIN.test(scanText)) scan(ADDRESS_NON_LATIN_PATTERN, "address", { accept: addressAccept });
   // A house and its street in Hindi, Bengali, Telugu, Tamil, Urdu, Arabic
@@ -2377,7 +2408,7 @@ export function findStructured(
     accept: (value, before) => {
       if (IP_NOT_A_PERSON.test(value)) return false;
       // The words before the label, with the label itself taken off.
-      const lead = (before ?? "").replace(/[\s:=*"'(]*(?:(?:customer|client|user|visitor|member|login|sign[\s-]?in|source|remote|originating|unknown|suspicious)\s+)?(?:ip[\w\s-]*|(?:indirizzo|direcci[óo]n|adresse|coordonn[ée]es)\s+ip)(?:\s+(?:is|was|of))?[\s:=*"'(|,>]*$/iu, "");
+      const lead = (before ?? "").replace(/[\s:=*"'(]*(?:(?:customer|client|user|visitor|member|login|sign[\s-]?in|source|remote|originating|unknown|suspicious|real|last[\s_-]?login|signup|registration)[\s_-]+)?(?:remote[_-]addr|x[_-](?:forwarded[_-]for|real[_-]ip)|client[_-]?addr(?:ess)?|ip[\w\s-]*|(?:indirizzo|direcci[óo]n|adresse|coordonn[ée]es)\s+ip)(?:\s+(?:is|was|of))?[\s:=*"'(|,>]*$/iu, "");
       return !IP_LABEL_MACHINE.test(lead);
     },
   });
@@ -2792,7 +2823,19 @@ export async function addFoundRedactions(
   for (const { kind, value } of found) {
     if (start + 3 * minted >= MAX_REDACTION_ENTRIES && Object.keys(out).length >= MAX_REDACTION_ENTRIES) break;
     minted += 1;
-    if (!isSubstitutable(value)) continue;
+    if (!isSubstitutable(value)) {
+      /* A quote or a backslash cannot go into the JSON the reply is restored
+         into, so such a value used to be skipped whole and sent as written:
+         "password: C:\\Users\\x9Kq!2" (leak hunt, 2026-11-14). Its pieces
+         between those characters can be swapped, so they are: what the model
+         sees is the shape around a stand-in, never the value. */
+      if (value.length <= MAX_REDACTION_VALUE_LENGTH && /["\\]/.test(value)) {
+        for (const piece of value.split(/["\\]+/)) {
+          if (piece.length >= 3 && isSubstitutable(piece)) found.push({ kind, value: piece });
+        }
+      }
+      continue;
+    }
     if (covered.has(value.toLowerCase())) continue;
     // Checked before minting rather than filtered out afterwards: an alias
     // that is created and then dropped still consumed a slot and a stand-in.
@@ -2801,8 +2844,21 @@ export async function addFoundRedactions(
     const fake = await pickFake(value, taken, haystack, (i, hex) => {
       switch (kind) {
         case "email": {
-          const first = FAKE_FIRST[(parseInt(hex.slice(0, 6), 16) + i) % FAKE_FIRST.length];
-          const last = FAKE_LAST[(parseInt(hex.slice(6, 12), 16) + i) % FAKE_LAST.length];
+          /* Its two words are a stand-in name too (the halves below), so
+             neither may be a word of the address it stands for or of the
+             text: "marcus.delgado@" drew "marcus.nakashima@", and Marcus went
+             out as written (leak hunt, 2026-11-14). */
+          const local = new Set(value.toLowerCase().split("@")[0].split(/[^\p{L}]+/u));
+          let first = "", last = "";
+          for (let k = 0; k < 64; k += 1) {
+            first = FAKE_FIRST[(parseInt(hex.slice(0, 6), 16) + i + k) % FAKE_FIRST.length];
+            last = FAKE_LAST[(parseInt(hex.slice(6, 12), 16) + i + k * 7) % FAKE_LAST.length];
+            // Nor a half another stand-in already holds: two addresses drawn
+            // as "Emmett Barrera" and "Emmett Nakamura" left the second
+            // person's first name with no half to stand for it.
+            const clash = (w: string) => taken.has(w) || local.has(w.toLowerCase()) || wordInHaystack(haystack, w.toLowerCase());
+            if (!clash(first) && !clash(last)) break;
+          }
           const domain = FAKE_EMAIL_DOMAINS[(parseInt(hex.slice(12, 16), 16) + i) % FAKE_EMAIL_DOMAINS.length];
           return `${first}.${last}`.toLowerCase() + `@${domain}`;
         }
@@ -2832,6 +2888,9 @@ export async function addFoundRedactions(
           return prefix + tail;
         }
         case "card":
+          // A security code under its label is three or four digits, and its
+          // stand-in is too, not a card number.
+          if (/^\d{3,4}$/.test(value)) return String((parseInt(hex.slice(0, 8), 16) + i * 7919) % 10 ** value.length).padStart(value.length, "0");
           return fakeCard(hex, i);
         case "iban":
           return fakeIban(value, hex, i);

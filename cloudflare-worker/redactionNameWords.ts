@@ -21,7 +21,7 @@ import { GIVEN_NAMES } from "./redactionGivenNames.js";
 import { SURNAMES, TYPED_LOWER } from "./redactionSurnames.js";
 import { WORLD_GIVEN_NAMES } from "./redactionWorldGivenNames.js";
 import { SCRIPT_GIVEN_NAMES } from "./redactionScriptGivenNames.js";
-import { isSubstitutable, ZH_TITLE } from "./redactionMap.js";
+import { escapeRegex, isSubstitutable, ZH_TITLE } from "./redactionMap.js";
 import { isForeignCommonWords } from "./redactionNameWordsIntl.js";
 import { moreCuedNames } from "./redactionNameCuesMore.js";
 
@@ -352,6 +352,9 @@ function isCaseFormOf(word: string, famous: string): boolean {
   const w = word.toLowerCase().replace(/['’]\p{L}+$/u, "");
   const f = famous.toLowerCase();
   if (w === f) return true;
+  // Greek drops the final ς after an article: "για τον Οδυσσέα Ελύτη", from
+  // Οδυσσέας Ελύτης (realistic5 practice, 2026-11-08).
+  if (/\p{Script=Greek}ς$/u.test(f) && w === f.slice(0, -1)) return true;
   // Russian and Polish adjectival names lose two letters: Толстой, Толстого;
   // Достоевский, Достоевского.
   for (const stem of new Set([f, f.replace(/[aeiouyаяеоыию]$/u, ""), f.replace(/e(\p{L})$/u, "$1"), f.replace(/(?:ий|ый|ой)$/u, ""), softened(f), f.replace(/s$/, "kse")])) {
@@ -370,7 +373,7 @@ function isFamousInflected(name: string): boolean {
     byStems = new Map();
     for (const full of FAMOUS_PEOPLE) {
       const parts = full.split(/\s+/);
-      if (parts.length < 2 || parts.length > 3 || !/^[\p{Script=Latin}\p{Script=Cyrillic}\s.'’-]+$/u.test(full)) continue;
+      if (parts.length < 2 || parts.length > 3 || !/^[\p{Script=Latin}\p{Script=Cyrillic}\p{Script=Greek}\s.'’-]+$/u.test(full)) continue;
       const key = stemsKey(parts);
       const names = byStems.get(key);
       if (names) names.push(full);
@@ -494,7 +497,10 @@ const KNOWN_PERSON_BEFORE = new RegExp(String.raw`(?:^|[^\p{L}])(?:` + [
 /** A form's name field, in any of the forty languages: whoever is written
  *  into it is the form's person, not somebody asked about ("والد کا نام:
  *  محمد یونس", the father's name, realistic5). */
-const FORM_FIELD_BEFORE = new RegExp(String.raw`(?:name|full name|nombre|apellidos?|nom|pr[ée]nom|nome|cognome|naam|vorname|nachname|navn|namn|nimi|n[ée]v|imi[ęe]|nazwisko|jm[ée]no|p[řr][íi]jmen[íi]|meno|ime|prezime|nume|prenume|όνομα|επώνυμο|имя|фамилия|фио|ім['’]я|прізвище|ad(?:ı)?\s*soyad(?:ı)?|isim|pangalan|nama|t[êe]n|h[ọo]\s*t[êe]n|नाम|নাম|نام|الاسم|اسم|שם(?:\s+(?:מלא|פרטי|משפחה))?|பெயர்|పేరు|ชื่อ|이름|성명|氏名|姓名|名前)\s*[:：]\s*$`, "iu");
+// And the person a record is about, under the record's own word for them:
+// "Pt: Matteo Ricci, DOB …" is a patient, not the Jesuit (leak hunt,
+// 2026-11-14).
+const FORM_FIELD_BEFORE = new RegExp(String.raw`(?:(?<![\p{L}])(?:pt|patient|client|customer|employee|applicant|tenant|insured|policyholder|member|claimant|resident|student|guest|passenger|recipient|beneficiary|account holder|cardholder|paciente|patiente?|patientin|cliente|kunde|mitarbeiter(?:in)?)|name|full name|nombre|apellidos?|nom|pr[ée]nom|nome|cognome|naam|vorname|nachname|navn|namn|nimi|n[ée]v|imi[ęe]|nazwisko|jm[ée]no|p[řr][íi]jmen[íi]|meno|ime|prezime|nume|prenume|όνομα|επώνυμο|имя|фамилия|фио|ім['’]я|прізвище|ad(?:ı)?\s*soyad(?:ı)?|isim|pangalan|nama|t[êe]n|h[ọo]\s*t[êe]n|नाम|নাম|نام|الاسم|اسم|שם(?:\s+(?:מלא|פרטי|משפחה))?|பெயர்|పేరు|ชื่อ|이름|성명|氏名|姓名|名前)\s*[:：]\s*$`, "iu");
 /** The honorifics that follow somebody the writer knows: Japanese, Chinese, Korean, and Turkish Bey and Hanım. */
 const KNOWN_PERSON_AFTER = /^\s?(?:さん|様|さま|君|くん|ちゃん|先生|氏|殿|女士|小姐|老师|老師|同学|同學|씨|님|군|양|선생)|^\s(?:Bey|Hanım|bey|hanım)(?![\p{L}])/u;
 
@@ -1009,7 +1015,7 @@ const HAS_CAPITAL = /\p{Lu}/u;
  * that only people do to or with people ("follow up with", "lives at").
  */
 const LOWERCASE_PERSON_CUE =
-  /\b(?:(?:my|his|her|their|your|first|last|full|maiden|sur|nick)\s*name|name\s*[:=]|call(?:ed)?\s+me|people\s+call\s+me|i(?:'m|’m|\s+am)\s+called|(?:mr|mrs|ms|miss|mx|dr|prof)\.?\s+\p{L}{2}|(?:dear|hi|hello|hey|thanks|thank\s+you)\s+\p{L}{2}|(?:my|his|her|their|your|our)\s+(?:daughter|son|wife|husband|partner|friend|boss|mom|mum|mother|dad|father|brother|sister|colleague|manager|client|patient|neighbou?r|teacher|doctor|lawyer|cousin|aunt|uncle|grandma|grandpa|fianc[eé]e?)\b|(?:follow\s+up|speak|talk|meet|chat|spoke|talked|met)\s+(?:to|with)\s+\p{L}{2}|\p{L}+(?:'s|’s)\s|\blives?\s+(?:at|in|on)\b|\bgender\s+of\b|\bleave\s+me\b)/u;
+  /\b(?:(?:my|his|her|their|your|first|last|full|maiden|sur|nick)\s*name|name\s*[:=]|call(?:ed)?\s+me|people\s+call\s+me|i(?:'m|’m|\s+am)\s+called|(?:mr|mrs|ms|miss|mx|dr|prof)\.?\s+\p{L}{2}|(?:dear|hi|hello|hey|thanks|thank\s+you)\s+\p{L}{2}|(?:my|his|her|their|your|our)\s+(?:daughter|son|wife|husband|partner|friend|boss|mom|mum|mother|dad|father|brother|sister|colleague|manager|client|patient|neighbou?r|teacher|doctor|lawyer|cousin|aunt|uncle|grandma|grandpa|fianc[eé]e?|landlord|landlady|tenant|roommate|flatmate|housemate|ex|girlfriend|boyfriend|coworker|co-worker|therapist|dentist|nurse|accountant|realtor|contractor|nanny|babysitter|tutor|coach|assistant|intern|supervisor|mentor|grandmother|grandfather|nephew|niece|step(?:mom|dad|mother|father|son|daughter)|mate|buddy|bestie|kids?|baby|toddler)\b|(?:tell|ask|call|text|email|message|remind|ping|dm|invite|thank|congratulate|visit)\s+(?!(?:me|him|her|them|us|you|it|the|a|an|my|his|their|our|your|some|every|any|no|about|if|when|whether|what|how|why|that|this|back|people|everyone|someone|anyone|nobody|everybody|somebody|anybody|again|now|later|first|last|all|both|each|which|where|who|support|them)\b)\p{L}{2,}|(?:follow\s+up|speak|talk|meet|chat|spoke|talked|met)\s+(?:to|with)\s+\p{L}{2}|\p{L}+(?:'s|’s)\s|\blives?\s+(?:at|in|on)\b|\bgender\s+of\b|\bleave\s+me\b)/u;
 
 /* The same cues in Spanish: "me llamo carlos mendoza", "hola ana",
    "mi hija lucía", "sra. treviño". Kept apart from the English list so that
@@ -1026,12 +1032,12 @@ const LOWERCASE_PERSON_CUE_ES =
  * word after it is what gives that away: a comma, another capital, a
  * possessive, or a verb a person does.
  */
+const BEFORE_A_LOWER_NAME = new Set(["if", "and", "with", "tell", "ask", "for", "to", "from", "lmk", "cc", "when", "whether", "or", "told", "asked", "call", "text", "meet", "see", "saw", "met", "love", "miss", "hi", "hey", "dear", "thanks", "thx", "by", "remind", "ping", "invite", "visit", "pick", "drop", "says", "said", "like", "than"]);
 const AFTER_A_NAME = /^(?:is|was|has|had|will|and|said|says|asked|told|wants|needs|can|could|would|should|lives|works|called|wrote|sent|thinks|went|came|es|era|fue|está|estaba|tiene|tenía|ha|había|va|dijo|dice|pidió|pide|quiere|necesita|puede|vive|trabaja|llamó|envió|pagó|firmó|debe|y|et|est|était|dit|und|ist|war|hat|sagte|e|è|aveva|disse|foi|tem|tinha)$/;
 
 export function mightContainNames(text: string): boolean {
   if (CASELESS_SCRIPT.test(text)) return true;
   const words = text.split(/\s+/);
-  if (!HAS_CAPITAL.test(text) && (LOWERCASE_PERSON_CUE.test(text) || LOWERCASE_PERSON_CUE_ES.test(text))) return true;
   for (let i = 0; i < words.length; i++) {
     const raw = words[i];
     const word = raw.replace(/^[^\p{L}]+|[^\p{L}']+$/gu, "");
@@ -1049,6 +1055,24 @@ export function mightContainNames(text: string): boolean {
       continue;
     }
     return true;
+  }
+  // No capitalised word gave it away. A lower-case name beside a cue does:
+  // "my landlord sarah chen", "tell priya i'll be late". The cue used to be
+  // read only when the text had no capital at all, so "my landlord sarah
+  // chen said OK" never reached the model (leak hunt, 2026-11-14).
+  if (LOWERCASE_PERSON_CUE.test(text) || LOWERCASE_PERSON_CUE_ES.test(text)) return true;
+  // A text with no capitals at all, typed on a phone: a given name in it is
+  // the evidence, "lmk if tyler can come saturday" (leak hunt, 2026-11-14).
+  // Not an ordinary word that is also a name ("will", "mark", "rose").
+  // Where a person stands: after a word that takes one, or before what a
+  // person does. "a tiny wizard hat" has a given name in it and no person.
+  if (!HAS_CAPITAL.test(text)) {
+    const ws = text.split(/[^\p{L}'’-]+/u).filter(Boolean);
+    for (let i = 0; i < ws.length; i++) {
+      const w = ws[i].replace(/['’]s$/u, "");
+      if (w.length < 3 || !isGivenNameAnywhere(w) || isCommonLowercaseWord(w) || SENTENCE_WORDS.has(w)) continue;
+      if (BEFORE_A_LOWER_NAME.has(ws[i - 1] ?? "") || AFTER_A_NAME.test(ws[i + 1] ?? "") || /['’]s$/u.test(ws[i])) return true;
+    }
   }
   return false;
 }
@@ -2155,4 +2179,45 @@ function titledEastAsianNames(text: string, out: string[]): void {
     if (name.replace(/\s/g, "").length < 2 && !/\p{Script=Han}|\p{Script=Hangul}/u.test(name)) continue;
     if (isSubstitutable(name) && !out.includes(name)) out.push(name);
   }
+}
+
+/*
+ * Months that are also given names — April, May, June, August — written as a
+ * person's: "ask April if she can swap shifts with May". The date rule took
+ * every one of them, so a model that found the person was overruled and her
+ * name went out as written (leak hunt, 2026-11-14). A month stands beside a
+ * day, a year, or a word that places it in time; a person does not. Every
+ * occurrence in the text has to read as a person, or it is a date.
+ */
+const MONTH_GIVEN_NAMES = new Set(["april", "may", "june", "august"]);
+const DATE_BEFORE = /(?:\b(?:in|by|until|till|since|next|last|this|early|late|mid|of|from|through|before|after|around|during|end|for|on|to|the|every|each|per|between|and|or)\s*|\d\S*\s*|[-–/,.]\s*)$/iu;
+const DATE_AFTER = /^\s*(?:\d|['’]\d{2}\b|[-–/]|of\b|(?:I|we|you|he|she|they|it|be|the|not|also|have|there)\b)/u;
+export function isMonthAsName(name: string, text: string): boolean {
+  if (!MONTH_GIVEN_NAMES.has(name.toLowerCase()) || !/^\p{Lu}\p{Ll}+$/u.test(name)) return false;
+  let seen = false;
+  for (const m of text.matchAll(new RegExp(`(?<!\\p{L})${escapeRegex(name)}(?!\\p{L})`, "gu"))) {
+    seen = true;
+    const at = m.index ?? 0;
+    if (DATE_BEFORE.test(text.slice(0, at)) || DATE_AFTER.test(text.slice(at + name.length))) return false;
+  }
+  return seen;
+}
+
+/**
+ * One word the lists call ordinary, named beside somebody the model also
+ * found: "Grace and Will", "Will, Grace and Tom". Will, Hope, Rose and Grace
+ * are people as often as words, and the pair is what tells (leak hunt,
+ * 2026-11-14). `others` are the model's other candidates, as returned.
+ */
+const COORDINATION = String.raw`\s*(?:,|and|&|und|et|y|e|og|och|en)\s+`;
+export function isCoordinatedName(name: string, text: string, others: readonly unknown[]): boolean {
+  if (!/^\p{Lu}\p{Ll}+$/u.test(name)) return false;
+  const n = escapeRegex(name);
+  for (const other of others) {
+    if (typeof other !== "string" || other === name || !/^\p{Lu}\p{Ll}+(?:\s\p{Lu}\p{Ll}+)?$/u.test(other)) continue;
+    if (COMMON_CAPITALISED.has(other) || SENTENCE_WORDS.has(other.toLowerCase()) || !text.includes(other)) continue;
+    const o = escapeRegex(other);
+    if (new RegExp(`(?<!\\p{L})${o}${COORDINATION}${n}(?!\\p{L})|(?<!\\p{L})${n}${COORDINATION}${o}(?!\\p{L})`, "u").test(text)) return true;
+  }
+  return false;
 }

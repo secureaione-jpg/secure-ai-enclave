@@ -12,7 +12,7 @@ import { standInFirstsFor } from "./redactionNameGender.js";
 import type { AllowList, NameModel, RedactionMap } from "./redactionMap.js";
 import {
   COMMON_CAPITALISED, isAcronym, isDateWords, isCommonLowercaseWord, isEverydayPhrase, isNotAPerson, isTownNamingAPerson,
-  isCaseName, isFamousPersonHere, isOrdinaryWordHere, isPetName, isPlainlyNotAName, isSentenceFragment, isSpeciesName, isTechnicalTerm, isWordOfAnUncasedScript, mightContainNames, namesFromCues,
+  isCaseName, isCoordinatedName, isFamousPersonHere, isMonthAsName, isOrdinaryWordHere, isPetName, isPlainlyNotAName, isSentenceFragment, isSpeciesName, isTechnicalTerm, isWordOfAnUncasedScript, mightContainNames, namesFromCues,
 } from "./redactionNameWords.js";
 import { isBareTitle, isForeignCommonWords, isGreetingHere, isNounCompound, withoutGreeting, withoutTitle } from "./redactionNameWordsIntl.js";
 import { placesFrom } from "./redactionMedical.js";
@@ -118,6 +118,11 @@ const NER_WINDOW_OVERLAP = 120;
  *  enclave either; the clock below is what actually bounds a document, and
  *  this only bounds the worst case. */
 const NER_MAX_WINDOWS = 64;
+
+/** How many windows one chat turn may read. A pasted thread of twenty
+ *  thousand characters is ten windows and about as many seconds; past this
+ *  the rest is reported as undecided, as a document is. */
+const NER_MAX_CHAT_WINDOWS = 8;
 
 /** A document stops starting new windows once this much time has gone.
  *  The Worker abandons the enclave at 30 s; a window started just before
@@ -325,6 +330,12 @@ export async function detectPersonalNames(
     organisations?: OrganisationSetting;
     /** Also return the places the model tagged (medical mode). */
     places?: boolean;
+    /** How many characters at the end of the text are this turn's — the
+     *  latest message. A chat reads the tail window because earlier turns'
+     *  names are already in the map; that is false for the earlier part of
+     *  a long message pasted this turn, whose names were never read (leak
+     *  hunt, 2026-11-14). Every window of the latest message is read. */
+    newChars?: number;
   },
 ): Promise<NameDetection> {
   /*
@@ -357,7 +368,8 @@ export async function detectPersonalNames(
      caller that has no earlier turn. The gate drops the windows with
      nothing name-shaped in them, which is what stops an ordinary document
      paying for inference on every page. */
-  const candidates = (opts?.scanAll ? nameWindows(text) : [text.slice(-NER_MAX_CHARS)])
+  const fresh = Math.min(text.length, Math.max(NER_MAX_CHARS, (opts?.newChars ?? 0) + NER_WINDOW_OVERLAP));
+  const candidates = (opts?.scanAll ? nameWindows(text) : nameWindows(text.slice(-fresh)))
     .filter((w) => mightContainNames(w));
 
   // The gate said there is nothing name-shaped here. That is a decision, not a
@@ -492,13 +504,29 @@ export async function detectPersonalNames(
       if (!Array.isArray(parsed)) return null;
 
       const names: string[] = [];
-      for (const candidate of parsed) {
+      // A queue, not the array: a name the text breaks over a line comes
+      // back as its two halves, each a candidate of its own.
+      const queue: unknown[] = [...parsed];
+      for (let q = 0; q < queue.length; q += 1) {
+        const candidate = queue[q];
         if (typeof candidate !== "string") continue;
         // Less a greeting or a title the tagger read as part of it: "Hallo
         // Makeswaran", "Mr. Zilke Eades", "chan ゆきか".
-        const name = withoutTitle(withoutGreeting(candidate.trim()));
-        // Present verbatim, or it did not come from the user.
-        if (name.length < 2 || !text.includes(name)) continue;
+        const asked = withoutTitle(withoutGreeting(candidate.trim()));
+        // Present verbatim, or it did not come from the user. Verbatim as
+        // written: a model tidies "Sarah  Chen" to one space and "sarah
+        // chen" to capitals, and the value taken is the text's own form, so
+        // the swap finds it (leak hunt, 2026-11-14). A name broken over a
+        // line is two values, each on its own line.
+        const name = locateName(asked, text);
+        if (name === null) continue;
+        if (/[\r\n]/.test(name)) {
+          queue.push(...name.split(/\r?\n/).map((part) => part.trim()).filter((part) => part.length >= 2));
+          continue;
+        }
+        // A month or a word the lists call ordinary, written as a person:
+        // "ask April if she can", "Grace and Will".
+        const rescued = isMonthAsName(name, text) || isCoordinatedName(name, text, queue);
         // Nor a title the model returned by itself: "Sra." out of "Estimada
         // Sra. Ortega".
         if (isBareTitle(name)) continue;
@@ -506,10 +534,10 @@ export async function detectPersonalNames(
         // list that decides whether to call the model at all also filters what
         // comes back — the model is the thing being checked here, so its
         // output cannot be the only thing consulted.
-        if (COMMON_CAPITALISED.has(name)) continue;
+        if (!rescued && COMMON_CAPITALISED.has(name)) continue;
         // Nor a day or a date, with or without its dot or its number:
         // "Tue.", "Sept 3", "Friday 5:30".
-        if (isDateWords(name)) continue;
+        if (!rescued && isDateWords(name)) continue;
         // And neither is a pair of them — "Hot Dog" is not a person.
         if (isEverydayPhrase(name)) continue;
         // Nor an ordinary word written the ordinary way — "hat".
@@ -529,7 +557,7 @@ export async function detectPersonalNames(
         if (isNotAPerson(name) && !isTownNamingAPerson(name, text)) continue;
         // Nor one word that is an ordinary word in this text: "the", "Article",
         // "PROCEDURE" over a judgment that says "the procedure".
-        if (isOrdinaryWordHere(name, text)) continue;
+        if (!rescued && isOrdinaryWordHere(name, text)) continue;
         // Nor a word nobody would take for a name: "sympathy" in a cased
         // message, 소아과, לי.
         if (isPlainlyNotAName(name, text)) continue;
@@ -567,8 +595,9 @@ export async function detectPersonalNames(
   let decided = true;
 
   const started = Date.now();
+  const maxWindows = opts?.scanAll ? NER_MAX_WINDOWS : NER_MAX_CHAT_WINDOWS;
   for (const [i, window] of candidates.entries()) {
-    if (i >= NER_MAX_WINDOWS || Date.now() - started > NER_ONESHOT_BUDGET_MS) {
+    if (i >= maxWindows || Date.now() - started > NER_ONESHOT_BUDGET_MS) {
       decided = false;
       break;
     }
@@ -605,6 +634,33 @@ export async function detectPersonalNames(
 }
 
 /**
+ * The name as the text writes it, or null when the text does not have it.
+ *
+ * Verbatim first. Otherwise the same words in any spacing and any case,
+ * bounded by non-letters, and the span the text holds is what is returned:
+ * "Sarah  Chen", "sarah chen", "Sarah\nChen" for a model that answered
+ * "Sarah Chen". Short answers of one word keep the case the model gave, so
+ * "will" is never read off "Will" (a word of two letters or more in all).
+ */
+function locateName(asked: string, text: string): string | null {
+  if (asked.length < 2) return null;
+  if (text.includes(asked)) return asked;
+  const words = asked.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return null;
+  const pattern = new RegExp(`(?<!\\p{L})${words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("\\s+")}(?!\\p{L})`, words.length > 1 ? "iu" : "u");
+  const m = pattern.exec(text);
+  if (!m) return null;
+  // One word, differently cased, only when the text has no capitals of its
+  // own to go by: "tell priya" for "Priya"; never "will" for "Will".
+  if (words.length === 1 && m[0] !== asked) {
+    const loose = new RegExp(`(?<!\\p{L})${words[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?!\\p{L})`, "iu").exec(text);
+    if (!loose || /\p{Lu}/u.test(text)) return null;
+    return loose[0];
+  }
+  return m[0];
+}
+
+/**
  * Adds an alias for each detected name, longest first so "Sarah Chen" is
  * mapped before "Sarah" and the pair stay consistent with each other.
  */
@@ -622,6 +678,8 @@ export async function addNameRedactions(
     covered.add(value);
     for (const w of value.split(/\s+/)) coveredWords.add(w);
   };
+  /* The words that have a stand-in: a whole value, or a half put in below. */
+  const halvesMapped = new Set([...covered].filter((v) => !/\s/.test(v)));
   const out: RedactionMap = { ...map };
   // How much of the stand-in grid is taken: a first and last name pair, or
   // one of the names alone.
@@ -653,7 +711,11 @@ export async function addNameRedactions(
     const lower = name.toLowerCase();
     // A set of every covered word, not a split of every covered name each
     // time: four thousand names took seconds that way (2026-10-08).
-    if (covered.has(lower) || coveredWords.has(lower)) continue;
+    // Covered means it has a stand-in of its own: a word of a mapped name
+    // whose half could not be added ("Sylvie" already taken, so "Lucía"
+    // got none) was skipped here and sent as written (leak hunt,
+    // 2026-11-14). It gets its own instead.
+    if (covered.has(lower) || (coveredWords.has(lower) && halvesMapped.has(lower))) continue;
 
     const parts = name.split(/\s+/);
     /*
@@ -739,6 +801,7 @@ export async function addNameRedactions(
           if (realPart !== name && covered.has(realPart.toLowerCase())) continue;
           if (isAllowed(realPart, allow)) continue;
           out[fakePart] = realPart;
+          halvesMapped.add(realPart.toLowerCase());
           taken.add(fakePart);
           countTaken(fakePart);
           cover(realPart.toLowerCase());

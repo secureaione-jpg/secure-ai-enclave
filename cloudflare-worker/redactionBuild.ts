@@ -125,6 +125,14 @@ const PROBE = [
   // values of their own): labels the engine did not know, and two ways of
   // writing a street.
   "Tel. 0176 55190342; 手机177-0381-5526; 계좌번호 352-0917-4468-03; NHC 55302871; 센텀중앙로 55번길 7, el portal de calle Goya 48",
+  // 2026-11-14, the leak hunt: a fullwidth email, a pw label, a password
+  // with a backslash, and a JWT over 200 characters.
+  // 2026-11-14, round 3: an IP under a JSON key, a signature's phone
+  // label, Portuguese and Hindi accounts, an Arabic road with its town.
+  // Round 3b: a lowercase IBAN, a street in capitals, a car plate, a CVV.
+  "iban de89370400440532013000; 1507 BAY RIDGE PKWY, BOISE ID 83702; car plate SYF-2270; card 4111 1111 1111 1111 cvv 357",
+  '{"client_ip":"108.42.56.58"}\nT: 479-380-920\nconta 63049-8, खाता 557249280252, طريق العليا 794، الرياض 01479',
+  "ping @sarahchen on slack; ｊａｎｅ＠ｇｍａｉｌ．ｃｏｍ; pw: 7Fj#kL9!; password: C:\\Users\\x9Kq!2; token eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiZW1haWwiOiJqb2huLmRvZUBleGFtcGxlLmNvbSIsImlhdCI6MTUxNjIzOTAyMiwicm9sZSI6ImFkbWluIiwic2NvcGUiOiJyZWFkIHdyaXRlIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c",
 ].join("\n");
 
 /**
@@ -151,7 +159,10 @@ const PROBE_REVISION = "2026-10-05 Japanese Chinese Korean addresses, Saudi IDs 
   + "; images at a pixel density not emails, code around a password not a password"
   + "; very famous people asked about not names (Wikidata, 60 Wikipedias), unless the writer knows them"
   + "; 2026-10-24 a title on its own not a name, Spanish French German Italian Dutch titles off a name"
-  + "; 2026-11-07 cues held to the word lists, tails of Hebrew words not names";
+  + "; 2026-11-07 cues held to the word lists, tails of Hebrew words not names"
+  + "; 2026-11-14 names located in any spacing or case, months and coordinated words as people, lower-case cues beside capitals, the latest message read whole"
+  + "; 2026-11-14 round 3: IPs under JSON and header keys, one-letter signature phone labels, Portuguese and Hindi accounts, Arabic roads, stand-ins that carry no name in the text, record labels as knowing a famous name"
+  + "; round 3b: lowercase IBANs past the hex guard, streets in capitals, car and my plate, lowercase given names where a person stands, email stand-ins with free halves, CVVs of their own length, a word whose half was taken gets its own";
 
 /** Computed once. The stages are pure and the input is a constant, so the
  *  answer cannot change without a redeploy -- which is the whole point. */

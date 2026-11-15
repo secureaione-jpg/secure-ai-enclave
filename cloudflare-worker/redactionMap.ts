@@ -126,7 +126,11 @@ export const MAX_REDACTION_ENTRIES = 4096;
  *  pickFake gives the same value the same stand-in — and the header that
  *  carries it back to the client holds about sixty anyway (redactionHeader). */
 export const MAX_CARRIED_ENTRIES = 256;
-export const MAX_REDACTION_VALUE_LENGTH = 200;
+/* Long enough for a JWT or a cloud key file's token: at 200, a 400-character
+   JWT carrying a person's email in its payload was found by the scanner and
+   then sent as written, because it was "too long to substitute" (leak hunt,
+   2026-11-14). The header already trims itself to fit (redactionHeader). */
+export const MAX_REDACTION_VALUE_LENGTH = 2048;
 
 /** What follows a Chinese surname used on its own: 李老师, 王经理, 陈先生.
  *  The name finder reads a surname there, and the swap takes a one-character
@@ -239,6 +243,20 @@ export function lowered(haystack: string): string {
    The stand-in lists are a few hundred strings, tried again for every value:
    a 3,000-row export searched 170,000 characters for the same names tens of
    thousands of times (2026-10-08). */
+/* The words of the haystack, for the same reason, built once per haystack:
+   a stand-in name for one person must not carry a word of anybody's name in
+   the text. "Marcus Ferreira" stood in for Luis in a chat where a real
+   Marcus spoke, and sent his first name (leak hunt, 2026-11-14). */
+const STAND_IN_NAME_WORDS = new Set([...FAKE_FIRST, ...FAKE_LAST]);
+let wordsOf = "";
+let haystackWords = new Set<string>();
+export function wordInHaystack(haystack: string, word: string): boolean {
+  if (haystack !== wordsOf) {
+    wordsOf = haystack;
+    haystackWords = new Set(lowered(haystack).split(/[^\p{L}\p{N}]+/u).filter((w) => w.length >= 3));
+  }
+  return haystackWords.has(word);
+}
 function inHaystack(haystack: string, candidate: string): boolean {
   const lower = lowered(haystack);
   const key = candidate.toLowerCase();
@@ -320,6 +338,10 @@ export async function pickFake(
     if (taken.has(candidate)) continue;
     if (inHaystack(haystack, candidate)) continue;
     if (own.size && candidate.toLowerCase().split(/[^\p{L}\p{N}]+/u).some((w) => own.has(w))) continue;
+    // Nor a stand-in first name or surname that is a word of the text:
+    // somebody else's name there. The kind word of a place or a company
+    // ("Hospital", "Group") is meant to match.
+    if (avoidOwnWords && candidate.split(/[^\p{L}\p{N}]+/u).some((w) => STAND_IN_NAME_WORDS.has(w) && wordInHaystack(haystack, w.toLowerCase()))) continue;
     return candidate;
   }
   /* Every candidate taken or already in the text. Returning nothing sent the

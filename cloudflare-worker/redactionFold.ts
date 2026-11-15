@@ -74,6 +74,7 @@ const DIGIT_BLOCKS = [
  */
 const INVISIBLE = /[\u200B\u200C\u200D\u2060\uFEFF\u00AD]/;
 const UNICODE_DASH = /[\u2010\u2011\u2012\u2013\u2014\u2015\u2212\uFE58\uFE63\uFF0D]/;
+const FULLWIDTH_ADDRESS = /[\uFF21-\uFF3A\uFF41-\uFF5A\uFF20\uFF0E\uFF3F\uFF0B]/;
 const UNICODE_SPACE = /[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/;
 
 export function normaliseDigits(text: string): string {
@@ -91,6 +92,12 @@ export function normaliseDigits(text: string): string {
       if (INVISIBLE.test(char)) { out += " "; continue; }
       if (UNICODE_DASH.test(char)) { out += "-"; continue; }
       if (UNICODE_SPACE.test(char)) { out += " "; continue; }
+      // Fullwidth Latin letters and the marks of an address, as a Japanese or
+      // Chinese keyboard types them: "ｊａｎｅ＠ｇｍａｉｌ．ｃｏｍ" matched
+      // nothing and went out as written (leak hunt, 2026-11-14). One unit to
+      // one unit, like the digits. The fullwidth brackets and colons CJK
+      // writing uses as its own punctuation are left alone.
+      if (FULLWIDTH_ADDRESS.test(char)) { out += String.fromCharCode(char.charCodeAt(0) - 0xFEE0); continue; }
     }
     // Iterating by code point, but only single-unit characters may be
     // rewritten: an astral digit is two units, and swapping it for one ASCII

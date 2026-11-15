@@ -69,6 +69,17 @@ export type EnclaveConfig = {
   anthropicKey?: string;
   openaiKey?: string;
   googleKey?: string;
+  /**
+   * What the Worker proves itself with, on /chat, /redact and /names.
+   *
+   * The tunnel puts every path of this server on the public internet, and
+   * the public key and the sealing code are published, so without it anybody
+   * could seal a chat and spend the provider keys above with no meter, no
+   * plan and no output cap (security review, 2026-11-15). Kept on the parent
+   * with the provider keys, never in the image. Absent: open, as before, with
+   * a warning at boot, so the image and the config can ship in either order.
+   */
+  workerSecret?: string;
 };
 
 /**
@@ -101,6 +112,7 @@ export async function loadConfig(): Promise<EnclaveConfig> {
     anthropicKey: process.env.ANTHROPIC_API_KEY || undefined,
     openaiKey: process.env.OPENAI_API_KEY || undefined,
     googleKey: process.env.GOOGLE_API_KEY || undefined,
+    workerSecret: process.env.ENCLAVE_WORKER_SECRET || undefined,
   };
   if (fromEnv.cfAccountId && fromEnv.cfAiToken) return fromEnv;
   if (fromEnv.allowNoNameStage) return fromEnv;
@@ -125,6 +137,7 @@ export async function loadConfig(): Promise<EnclaveConfig> {
         anthropicKey: fromEnv.anthropicKey ?? body.anthropicKey,
         openaiKey: fromEnv.openaiKey ?? body.openaiKey,
         googleKey: fromEnv.googleKey ?? body.googleKey,
+        workerSecret: fromEnv.workerSecret ?? body.workerSecret,
       };
     } catch {
       // Parent not ready, or no responder. Retry, then fall through.

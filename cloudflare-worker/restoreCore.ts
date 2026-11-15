@@ -100,7 +100,54 @@ export function restoreText(text: string, entries: Array<[string, string]>): str
       i += 1;
     }
   }
-  return cardTails(plain === 0 ? text : out + text.slice(plain), entries);
+  return cardTails(rewritten(plain === 0 ? text : out + text.slice(plain), entries), entries);
+}
+
+/*
+ * A stand-in the model wrote back in its own style. An email re-cased
+ * ("Colette.Marsh@Gmail.com"), a phone with other separators ("415-212-3344"
+ * for "(415) 212-3344", or "+1" in front), a card with no spaces: matched
+ * exactly, none was found, and the person read a number or an address that
+ * is not theirs (leak hunt, 2026-11-14). An address is matched in any case;
+ * a number by its digits, as a run of groups standing on its own, written
+ * back as the person wrote it.
+ */
+const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const NUMBER_SHAPE = /^[+(]?[\d][\d ().-]*\d$/;
+const EMAIL_RUN = /[\p{L}\p{N}._%+-]+@[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)+/gu;
+const NUMBER_RUN = /(?<![\p{L}\p{N}.])[+(]?\d(?:[\d().-]*[\d)])?(?:[ \t]+[+(]?\d(?:[\d().-]*[\d)])?)*(?![\p{L}\p{N}]|[.-]\d)/gu;
+function rewritten(text: string, entries: Array<[string, string]>): string {
+  const emails = new Map<string, string>();
+  const numbers = new Map<string, string>();
+  for (const [fake, real] of entries) {
+    if (EMAIL_SHAPE.test(fake)) emails.set(fake.toLowerCase(), real);
+    else if (NUMBER_SHAPE.test(fake) && NUMBER_SHAPE.test(real) && fake.replace(/\D/g, "").length >= 7) numbers.set(fake.replace(/\D/g, ""), real);
+  }
+  let out = text;
+  if (emails.size > 0) out = out.replace(EMAIL_RUN, (run) => emails.get(run.toLowerCase()) ?? run);
+  if (numbers.size === 0) return out;
+  return out.replace(NUMBER_RUN, (run) => {
+    // The groups of the run, any window of them: "on 3 Jan call 415 212 3344".
+    const groups = [...run.matchAll(/\S+/g)];
+    for (let len = groups.length; len >= 1; len -= 1) {
+      for (let from = 0; from + len <= groups.length; from += 1) {
+        const a = groups[from].index ?? 0;
+        const last = groups[from + len - 1];
+        const b = (last.index ?? 0) + last[0].length;
+        const piece = run.slice(a, b);
+        const real = numbers.get(piece.replace(/\D/g, ""));
+        if (real !== undefined && real.replace(/\D/g, "") !== piece.replace(/\D/g, "")) {
+          // A bracket the window cut in two is left as it was found.
+          const lead = /^\)/.test(piece) ? ")" : "";
+          // The stand-in's "+1" goes with it when the real number has its own
+          // country code: "+1 415 212 3344" is "+44 7700 900123", not "+1 +44…".
+          const before = /^\+?1[ \t]+$/.test(run.slice(0, a)) && real.startsWith("+") ? "" : run.slice(0, a);
+          return before + lead + real + run.slice(b);
+        }
+      }
+    }
+    return run;
+  });
 }
 
 /* A reply that names a card by its last four only: "a refund to the card
@@ -137,6 +184,11 @@ const WORD = /^[\p{L}'-]+$/u;
  *   - a word that would map two ways;
  *   - a word the same in both.
  */
+/* The second word of an organisation's stand-in ("Harrowgate Group") is an
+   ordinary word, and a half of it put back would turn every "Group" a reply
+   writes into "Ltd". Only the invented first word is a half. */
+const ORG_KINDS = new Set(["Group", "Holdings", "Partners", "Associates", "Industries", "Institute", "Trust", "Systems"]);
+
 export function halfNames(map: Record<string, string>): Array<[string, string]> {
   const realWords = new Set(Object.values(map).flatMap((r) => r.toLowerCase().split(/\s+/)));
   const pairs = new Map<string, string | null>();
@@ -146,6 +198,7 @@ export function halfNames(map: Record<string, string>): Array<[string, string]> 
     if (a.length !== 2 || b.length !== 2 || ![...a, ...b].every((w) => WORD.test(w))) continue;
     for (const i of [0, 1]) {
       if (a[i] === b[i] || realWords.has(a[i].toLowerCase())) continue;
+      if (i === 1 && ORG_KINDS.has(a[1])) continue;
       const seen = pairs.get(a[i]);
       pairs.set(a[i], seen === undefined || seen === b[i] ? b[i] : null);
     }

@@ -1,4 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { timingSafeEqual } from "node:crypto";
 
 import {
   addNameRedactions,
@@ -156,6 +157,9 @@ type RedactRequest = {
    *  for chat, where the tail is right because earlier names are already in
    *  the map being carried forward. */
   scanAll?: boolean;
+  /** How long the latest user message is, so the name stage reads all of
+   *  it rather than only its last window. */
+  newChars?: number;
   /** Hide organisations as well as people. Off unless the caller asked.
    *  "all": public bodies (courts, ministries, states) too. */
   hideOrganisations?: boolean | "all";
@@ -245,6 +249,7 @@ async function runRedaction(parsed: RedactRequest): Promise<
   // latency and the one that can fail to reach a verdict.
   const detection = await detectPersonalNames(userText, nameModel, {
     scanAll: parsed.scanAll === true,
+    newChars: typeof parsed.newChars === "number" && parsed.newChars > 0 ? parsed.newChars : undefined,
     organisations: parsed.hideOrganisations === "all" ? "all" : parsed.hideOrganisations === true,
     places: parsed.medical === true,
   });
@@ -434,8 +439,24 @@ async function handleChat(body: string, res: ServerResponse, numberStage: boolea
   }
 }
 
+/** Whether the caller is the Worker: see EnclaveConfig.workerSecret. */
+function fromWorker(req: IncomingMessage): boolean {
+  const expected = config.workerSecret;
+  if (!expected) return true;
+  const given = req.headers["x-enclave-secret"];
+  if (typeof given !== "string") return false;
+  const a = Buffer.from(given), b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+if (!config.workerSecret) console.warn("[enclave] no workerSecret in config: /chat, /redact and /names answer anybody");
+
 const server = createServer(async (req, res) => {
   try {
+    // The three that do work, and spend: the Worker's alone. Health, the
+    // attestation and the public key stay public; a client reads them.
+    if (req.method === "POST" && (req.url === "/redact" || req.url === "/names" || req.url === "/chat") && !fromWorker(req)) {
+      return send(res, 401, { error: "unauthorized" });
+    }
     if (req.method === "GET" && req.url === "/health") {
       /* Which redaction build this image is running. The stages are deployed
          twice -- into the Worker, and into this image -- and until this line
